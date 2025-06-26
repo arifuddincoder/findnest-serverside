@@ -235,6 +235,65 @@ async function run() {
 
 			res.send({ percentage: percentage.toFixed(1) });
 		});
+
+		app.get("/api/stats/percentage/listings", async (req, res) => {
+			try {
+				const now = new Date();
+				const yesterday = new Date();
+				yesterday.setDate(now.getDate() - 1);
+
+				const dayBeforeYesterday = new Date();
+				dayBeforeYesterday.setDate(now.getDate() - 2);
+
+				const current = await roommateListingsCollection.countDocuments({
+					createdAt: { $gte: yesterday, $lt: now },
+				});
+
+				const previous = await roommateListingsCollection.countDocuments({
+					createdAt: { $gte: dayBeforeYesterday, $lt: yesterday },
+				});
+
+				const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+
+				res.send({ percentage: Number(percentage.toFixed(1)) });
+			} catch (err) {
+				console.error("Error in listings percentage API:", err);
+				res.status(500).send({ error: "Internal Server Error" });
+			}
+		});
+
+		app.get("/api/stats/percentage/my-listings", async (req, res) => {
+			const token = req.headers.authorization?.replace("Bearer ", "");
+
+			try {
+				const decoded = await admin.auth().verifyIdToken(token);
+				const email = decoded.email;
+
+				const now = new Date();
+				const yesterday = new Date();
+				yesterday.setDate(now.getDate() - 1);
+
+				const dayBeforeYesterday = new Date();
+				dayBeforeYesterday.setDate(now.getDate() - 2);
+
+				const current = await roommateListingsCollection.countDocuments({
+					email,
+					createdAt: { $gte: yesterday, $lt: now },
+				});
+
+				const previous = await roommateListingsCollection.countDocuments({
+					email,
+					createdAt: { $gte: dayBeforeYesterday, $lt: yesterday },
+				});
+
+				const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+
+				res.send({ percentage: Number(percentage.toFixed(1)) });
+			} catch (err) {
+				console.error("Error in my listings percentage API:", err);
+				res.status(401).send({ error: "Unauthorized or Invalid Token" });
+			}
+		});
 	} finally {
 	}
 }

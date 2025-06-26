@@ -31,6 +31,7 @@ async function run() {
 	try {
 		const db = client.db("findnest");
 		const roommateListingsCollection = db.collection("roommateListings");
+		const userCollection = db.collection("users");
 
 		app.get("/api/roommates", async (req, res) => {
 			const result = await roommateListingsCollection.find().toArray();
@@ -165,6 +166,30 @@ async function run() {
 				console.error("Like error:", err);
 				res.status(401).send({ error: "Unauthorized" });
 			}
+		});
+
+		app.post("/api/users", async (req, res) => {
+			const { email, displayName, photoURL, creationTime, lastSignInTime } = req.body;
+
+			if (!email) {
+				return res.status(400).send({ error: true, message: "Email is required" });
+			}
+
+			const existingUser = await userCollection.findOne({ email });
+
+			if (existingUser) {
+				return res.status(200).send({ status: "existing", user: existingUser });
+			}
+
+			const result = await userCollection.insertOne({
+				email,
+				displayName,
+				photoURL,
+				creationTime,
+				lastSignInTime,
+			});
+
+			res.status(201).send({ status: "new", insertedId: result.insertedId });
 		});
 	} finally {
 	}

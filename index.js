@@ -217,6 +217,24 @@ async function run() {
 				res.status(401).send({ error: "Unauthorized" });
 			}
 		});
+
+		app.get("/api/stats/user-change", async (req, res) => {
+			const now = new Date();
+			const yesterday = new Date();
+			yesterday.setDate(yesterday.getDate() - 1);
+
+			const current = await userCollection.countDocuments({
+				createdAt: { $gte: yesterday, $lte: now },
+			});
+
+			const previous = await userCollection.countDocuments({
+				createdAt: { $lt: yesterday },
+			});
+
+			const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+
+			res.send({ percentage: percentage.toFixed(1) });
+		});
 	} finally {
 	}
 }

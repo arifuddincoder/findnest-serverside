@@ -27,6 +27,13 @@ const client = new MongoClient(uri, {
 	},
 });
 
+function getMidnightDate(daysAgo = 0) {
+	const date = new Date();
+	date.setUTCHours(0, 0, 0, 0);
+	date.setUTCDate(date.getUTCDate() - daysAgo);
+	return date;
+}
+
 async function run() {
 	try {
 		const db = client.db("findnest");
@@ -219,45 +226,47 @@ async function run() {
 		});
 
 		app.get("/api/stats/user-change", async (req, res) => {
-			const now = new Date();
-			const yesterday = new Date();
-			yesterday.setDate(yesterday.getDate() - 1);
+			try {
+				const today = getMidnightDate(0);
+				const yesterday = getMidnightDate(1);
+				const dayBeforeYesterday = getMidnightDate(2);
 
-			const current = await userCollection.countDocuments({
-				createdAt: { $gte: yesterday, $lte: now },
-			});
+				const current = await userCollection.countDocuments({
+					createdAt: { $gte: yesterday, $lt: today },
+				});
 
-			const previous = await userCollection.countDocuments({
-				createdAt: { $lt: yesterday },
-			});
+				const previous = await userCollection.countDocuments({
+					createdAt: { $gte: dayBeforeYesterday, $lt: yesterday },
+				});
 
-			const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+				const percentage = previous === 0 ? (current === 0 ? 0 : 100) : ((current - previous) / previous) * 100;
 
-			res.send({ percentage: percentage.toFixed(1) });
+				res.send({ percentage: Number(percentage.toFixed(1)) });
+			} catch (err) {
+				console.error("User Change Error:", err);
+				res.status(500).send({ error: "Internal Server Error" });
+			}
 		});
 
 		app.get("/api/stats/percentage/listings", async (req, res) => {
 			try {
-				const now = new Date();
-				const yesterday = new Date();
-				yesterday.setDate(now.getDate() - 1);
-
-				const dayBeforeYesterday = new Date();
-				dayBeforeYesterday.setDate(now.getDate() - 2);
+				const today = getMidnightDate(0);
+				const yesterday = getMidnightDate(1);
+				const dayBeforeYesterday = getMidnightDate(2);
 
 				const current = await roommateListingsCollection.countDocuments({
-					createdAt: { $gte: yesterday, $lt: now },
+					createdAt: { $gte: yesterday, $lt: today },
 				});
 
 				const previous = await roommateListingsCollection.countDocuments({
 					createdAt: { $gte: dayBeforeYesterday, $lt: yesterday },
 				});
 
-				const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+				const percentage = previous === 0 ? (current === 0 ? 0 : 100) : ((current - previous) / previous) * 100;
 
 				res.send({ percentage: Number(percentage.toFixed(1)) });
 			} catch (err) {
-				console.error("Error in listings percentage API:", err);
+				console.error("Listings Percentage Error:", err);
 				res.status(500).send({ error: "Internal Server Error" });
 			}
 		});
@@ -269,16 +278,13 @@ async function run() {
 				const decoded = await admin.auth().verifyIdToken(token);
 				const email = decoded.email;
 
-				const now = new Date();
-				const yesterday = new Date();
-				yesterday.setDate(now.getDate() - 1);
-
-				const dayBeforeYesterday = new Date();
-				dayBeforeYesterday.setDate(now.getDate() - 2);
+				const today = getMidnightDate(0);
+				const yesterday = getMidnightDate(1);
+				const dayBeforeYesterday = getMidnightDate(2);
 
 				const current = await roommateListingsCollection.countDocuments({
 					email,
-					createdAt: { $gte: yesterday, $lt: now },
+					createdAt: { $gte: yesterday, $lt: today },
 				});
 
 				const previous = await roommateListingsCollection.countDocuments({
@@ -286,12 +292,51 @@ async function run() {
 					createdAt: { $gte: dayBeforeYesterday, $lt: yesterday },
 				});
 
-				const percentage = previous === 0 ? 100 : ((current - previous) / previous) * 100;
+				const percentage = previous === 0 ? (current === 0 ? 0 : 100) : ((current - previous) / previous) * 100;
 
 				res.send({ percentage: Number(percentage.toFixed(1)) });
 			} catch (err) {
-				console.error("Error in my listings percentage API:", err);
+				console.error("My Listings Percentage Error:", err);
 				res.status(401).send({ error: "Unauthorized or Invalid Token" });
+			}
+		});
+
+		app.get("/api/stats/monthly-listings", async (req, res) => {
+			try {
+				const listings = await roommateListingsCollection
+					.aggregate([
+						{
+							$match: {
+								createdAt: { $type: "date" }, // শুধু date টাইপ ফিল্ড নেবে
+							},
+						},
+						{
+							$group: {
+								_id: { $month: "$createdAt" },
+								count: { $sum: 1 },
+							},
+						},
+						{
+							$project: {
+								_id: 0,
+								monthNumber: "$_id",
+								count: 1,
+							},
+						},
+					])
+					.toArray();
+
+				const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+				const formattedData = listings.map((item) => ({
+					month: monthNames[item.monthNumber - 1],
+					count: item.count,
+				}));
+
+				res.send(formattedData);
+			} catch (error) {
+				console.error("Monthly listings analytics error:", error);
+				res.status(500).send({ error: "Internal Server Error" });
 			}
 		});
 	} finally {

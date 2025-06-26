@@ -191,6 +191,32 @@ async function run() {
 
 			res.status(201).send({ status: "new", insertedId: result.insertedId });
 		});
+
+		app.get("/api/stats/total-users", async (req, res) => {
+			const total = await userCollection.estimatedDocumentCount();
+			res.send({ total });
+		});
+
+		app.get("/api/stats/total-listings", async (req, res) => {
+			const total = await roommateListingsCollection.estimatedDocumentCount();
+			res.send({ total });
+		});
+
+		app.get("/api/stats/my-listings", async (req, res) => {
+			const authHeader = req.headers.authorization || "";
+			const token = authHeader.replace("Bearer ", "");
+
+			try {
+				const decoded = await admin.auth().verifyIdToken(token);
+				const email = decoded.email;
+
+				const total = await roommateListingsCollection.countDocuments({ email });
+				res.send({ total });
+			} catch (error) {
+				console.error(error);
+				res.status(401).send({ error: "Unauthorized" });
+			}
+		});
 	} finally {
 	}
 }

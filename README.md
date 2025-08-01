@@ -4,6 +4,14 @@
 - **Client Website:** [https://b11a10-findnest.web.app/](https://b11a10-findnest.web.app/)
 - **Server API:** [https://b11a10-findnest-server.vercel.app/](https://b11a10-findnest-server.vercel.app/)
 
+---
+
+## 📁 GitHub Repositories
+- **Client:** [FindNest-Client](https://github.com/arifuddincoder/findnest-client)
+- **Server:** [FindNest-Server](https://github.com/arifuddincoder/findnest-serverside)
+
+---
+
 
 ## 🧪 How to Run Locally
 
@@ -65,13 +73,6 @@ Now you're all set!
 
 ---
 
----
-
-## 📁 GitHub Repositories
-- **Client:** [FindNest Client](https://github.com/arifuddincoder/findnest_client)
-- **Server:** [FindNest Server](https://github.com/arifuddincoder/findnest_serverside)
-
----
 
 ## ⚙️ Technology Stack
 
